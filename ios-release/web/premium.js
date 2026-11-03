@@ -448,6 +448,7 @@ function showPractice(g,i){stopMicrophone();
   try{localStorage.setItem('klar-practice-v2',JSON.stringify(done))}catch{}
   document.getElementById('practiceFeedback').textContent='✓ Ses ölçümüne göre tamamlandı olarak kaydedildi.';
   document.getElementById('donePractice').disabled=true;
+  window.dispatchEvent(new CustomEvent('kh:practice-completed',{detail:{practiceId:id}}));
  };
 }
 function staffSvg(idx){const y=[146,135,125,115,105,95,85,75,65][idx];return `<div class="staff"><svg viewBox="0 0 340 175" role="img" aria-label="Sol anahtarlı beş çizgili porte ve ${safe(noteNames[idx])} notası"><g stroke="#494350" stroke-width="2">${[65,85,105,125,145].map(y=>`<path d="M20 ${y}H320"/>`).join('')}</g><text x="22" y="141" font-size="91" fill="#514753" font-family="Georgia">𝄞</text><ellipse cx="207" cy="${y}" rx="13" ry="9" transform="rotate(-20 207 ${y})" fill="#3e304f"/><path d="M219 ${y}v-52" stroke="#3e304f" stroke-width="3"/><text x="258" y="${y+4}" fill="#3e304f" font-family="Georgia" font-size="17">${safe(noteNames[idx])}</text></svg></div>`;}
