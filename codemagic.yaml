@@ -59,6 +59,12 @@ workflows:
       node: 22
       xcode: latest
       cocoapods: default
+      # These are public Google AdMob identifiers, not signing keys.
+      # Ads are limited to rare post-practice interstitials, never banners.
+      vars:
+        KLARNET_ADMOB_MODE: "production"
+        KLARNET_ADMOB_APP_ID: "ca-app-pub-9321324588059191~2378206072"
+        KLARNET_ADMOB_INTERSTITIAL_ID: "ca-app-pub-9321324588059191/9254393585"
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.oguzhanozeren.klarnethocam
