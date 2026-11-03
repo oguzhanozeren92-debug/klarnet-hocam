@@ -11,7 +11,7 @@ const www=path.join(projectRoot,"www");
 const config=path.join(projectRoot,"capacitor.config.json");
 const plist=path.join(native,"Info.plist");
 function required(f){if(!fs.existsSync(f)||!fs.statSync(f).size)throw new Error("Missing required build asset: "+f);}
-for(const f of [path.join(www,"index.html"),path.join(www,"premium.js"),path.join(www,"premium.css"),path.join(www,"polish.css"),project,config,plist]) required(f);
+for(const f of [path.join(www,"index.html"),path.join(www,"premium.js"),path.join(www,"premium.css"),path.join(www,"polish.css"),path.join(www,"mobile-extras.js"),path.join(www,"mobile-extras.css"),path.join(www,"mobile-config.js"),project,config,plist]) required(f);
 const app=JSON.parse(fs.readFileSync(config,"utf8"));
 if(app.appId!=="com.oguzhanozeren.klarnethocam")throw new Error("Wrong bundle identifier");
 const publicDir=path.join(native,"public");
@@ -21,13 +21,30 @@ fs.copyFileSync(config,path.join(native,"capacitor.config.json"));
 const xml=path.join(native,"config.xml");
 if(!fs.existsSync(xml))fs.writeFileSync(xml,'<?xml version="1.0" encoding="utf-8"?>\n<widget xmlns="http://www.w3.org/ns/widgets" id="'+app.appId+'" version="1.0.0"><name>Klarnet Hocam</name><content src="index.html"/></widget>\n');
 execFileSync("plutil",["-replace","NSMicrophoneUsageDescription","-string","Klarnet calisinizi dinleyerek nota, akort ve ritim dogrulugunu olcmek icin mikrofon kullanilir.",plist]);
+// The Google AdMob iOS SDK needs an application ID even for disabled/demo mode.
+// A store release with advertising enabled MUST have this app's own real ID.
+const adMode=String(process.env.KLARNET_ADMOB_MODE||"disabled").trim();
+const providedId=String(process.env.KLARNET_ADMOB_APP_ID||"").trim();
+const realApp=/^ca-app-pub-\\d{16}~\\d{10}$/.test(providedId)
+  && !providedId.startsWith("ca-app-pub-3940256099942544");
+if(adMode==="production"&&!realApp)throw Error("Production Klarnet AdMob APP ID missing");
+const appIdForSdk=adMode==="production"?providedId:"ca-app-pub-3940256099942544~1458002511";
+execFileSync("plutil",["-replace","GADApplicationIdentifier","-string",appIdForSdk,plist]);
+try{
+  execFileSync("/usr/libexec/PlistBuddy",["-c","Print :SKAdNetworkItems",plist],{stdio:"ignore"});
+}catch{
+  execFileSync("/usr/libexec/PlistBuddy",["-c","Add :SKAdNetworkItems array",plist]);
+  execFileSync("/usr/libexec/PlistBuddy",["-c","Add :SKAdNetworkItems:0 dict",plist]);
+  execFileSync("/usr/libexec/PlistBuddy",["-c","Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string cstr6suwn9.skadnetwork",plist]);
+}
+
 execFileSync("plutil",["-replace","UIViewControllerBasedStatusBarAppearance","-bool","false",plist]);
 execFileSync("plutil",["-replace","UIStatusBarStyle","-string","UIStatusBarStyleLightContent",plist]);
 let pbx=fs.readFileSync(project,"utf8");
 if(!pbx.includes("TARGETED_DEVICE_FAMILY"))throw new Error("Expected native iOS device-family build setting missing");
 pbx=pbx.replace(/TARGETED_DEVICE_FAMILY = [^;]+;/g,"TARGETED_DEVICE_FAMILY = 1;");
 fs.writeFileSync(project,pbx);
-for(const name of ["index.html","premium.js","premium.css","polish.css"])required(path.join(publicDir,name));
+for(const name of ["index.html","premium.js","premium.css","polish.css","mobile-extras.js","mobile-extras.css","mobile-config.js"])required(path.join(publicDir,name));
 required(path.join(native,"config.xml"));
 required(path.join(native,"capacitor.config.json"));
 console.log("PASS: Native iPhone-only resources, microphone disclosure, status bar and real web content.");
