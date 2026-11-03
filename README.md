@@ -18,7 +18,7 @@ Orijinal onaylı kare ikon `resources/icon.png` konumunda. İkinci kopyası `ass
 - `klarnet-hocam-ios-testflight`: imzalı iPhone IPA üretimi ve App Store Connect'e yükleme. App Store incelemesine göndermez.
 
 Native kabuk `ios-release/` içinde Capacitor 8 / Swift Package Manager kullanır.
-`npm run native:prepare`, Vercel'deki gerçek yayındaki uygulamanın dört web dosyasını build sırasında doğrulayarak indirip `www/` altına paketler; ardından Xcode proje dosyalarını, mikrofon izin açıklamasını, portre/iPhone yapılandırmasını ve onaylı ikonu ekler. Kaynağa erişilemezse eksik/boş bir IPA üretmek yerine hata verir.
+`npm run native:prepare`, **onaylanan V6 eğitimi doğrudan bu GitHub deposundaki `ios-release/web/` klasöründen** `www/` altına paketler. Vercel'in eski bir yayını build'e karışamaz. Build öncesi 29 konu dersi, 35 ayrı alıştırma, nota/mikrofon/akort arayüzü ve gerekli dosyaların varlığı doğrulanır; doğrulama başarısızsa IPA üretimi durur. Ardından Xcode projesi, mikrofon izin metni, iPhone ayarları ve onaylı ikon hazırlanır. Onaylanan V6 tasarımının CSS ve JavaScript dosyaları GitHub'da tutulur.
 
 Apple imzalama için Codemagic'te `TarlaPusula CI 2` App Store Connect entegrasyonunun doğru Apple Developer hesabına bağlı ve `com.oguzhanozeren.klarnethocam` için dağıtım imzalama yetkisi bulunmalıdır. İşlem başarıyla bitmeden **App Store Connect > Build** alanında bir build görünmez.
 
@@ -29,4 +29,4 @@ Apple imzalama için Codemagic'te `TarlaPusula CI 2` App Store Connect entegrasy
 - Destek / gizlilik bağlantıları ve App Store ekran görüntüleri
 - Apple inceleme kurallarına uygun işlevsellik ve erişilebilirlik
 
-Hazır build dosyası veya TestFlight yüklemesi bu depoda **henüz doğrulanmış değildir**. Codemagic'te yeni bir **main** derlemesi başlatılmalıdır.
+**3 Kasım 2026 notu:** Önceki TestFlight Build 6, daha önceki Vercel yayınının dosyalarıyla hazırlanmış olabilir. V6 içerik doğrudan GitHub'a yeni eklendiği için **Build 6 güncel değildir**; yeni main commit'iyle Codemagic'te yeni bir signed TestFlight build almak gerekir. Gerçek iPhone üzerinde mikrofon, nota, parmak pozisyonu ve responsive tasarım ayrıca test edilmelidir. V6'nın bazı isteğe bağlı referans görselleri ve nota analizi kütüphaneleri internet gerektirebilir.
