@@ -1,5 +1,13 @@
 # Klarnet Hocam: manual smoke and signed TestFlight builds.
 # No automatic App Store review submission; the approved GitHub icon is bundled.
+# Ads are DISABLED by default. After creating the Klarnet Hocam iOS app
+# and its INTERSTITIAL unit in AdMob, configure these three PUBLIC identifiers
+# in the signed workflow's private Codemagic environment/group:
+#   KLARNET_ADMOB_MODE=production
+#   KLARNET_ADMOB_APP_ID=ca-app-pub-...~...
+#   KLARNET_ADMOB_INTERSTITIAL_ID=ca-app-pub-.../...
+# No KLARNET_ADMOB_BANNER_ID is used. Keep the smoke build ads-disabled.
+# Physical iPhone / monetization tests will be performed later in one batch.
 workflows:
   klarnet-hocam-ios-smoke:
     name: Klarnet Hocam — iPhone unsigned build test
