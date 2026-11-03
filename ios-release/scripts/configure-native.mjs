@@ -25,7 +25,7 @@ execFileSync("plutil",["-replace","NSMicrophoneUsageDescription","-string","Klar
 // A store release with advertising enabled MUST have this app's own real ID.
 const adMode=String(process.env.KLARNET_ADMOB_MODE||"disabled").trim();
 const providedId=String(process.env.KLARNET_ADMOB_APP_ID||"").trim();
-const realApp=/^ca-app-pub-\\d{16}~\\d{10}$/.test(providedId)
+const realApp=/^ca-app-pub-\d{16}~\d{10}$/.test(providedId)
   && !providedId.startsWith("ca-app-pub-3940256099942544");
 if(adMode==="production"&&!realApp)throw Error("Production Klarnet AdMob APP ID missing");
 const appIdForSdk=adMode==="production"?providedId:"ca-app-pub-3940256099942544~1458002511";
