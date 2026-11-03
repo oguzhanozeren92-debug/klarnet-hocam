@@ -24,5 +24,4 @@
  color:#1e2638;border-color:transparent;}
 #kh-ad-privacy{margin-top:18px;width:100%;min-height:38px;border-radius:10px;
  border:1px solid #64718a;background:transparent;color:#f7e9c8;}
-body.kh-banner-visible #main{padding-bottom:max(150px,calc(env(safe-area-inset-bottom) + 150px));}
 @media(max-width:370px){.kh-dialog{padding:20px 15px}#kh-settings-open{width:34px;height:34px;flex-basis:34px}}
