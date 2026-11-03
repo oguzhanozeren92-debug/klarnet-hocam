@@ -123,19 +123,7 @@ workflows:
           # Avoid SIGPIPE (exit 141) under pipefail: grep -q can terminate
           # before unzip finishes writing the IPA file list.
           unzip -Z -1 "$IPA" > /tmp/klarnet-ipa-contents.txt
-          if ! grep -Eq '^Payload/[^/]+[.]app/Info[.]plist
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/klarnet-ipa.log
-      - /tmp/klarnet-unsigned.log
-      - /tmp/klarnet-spm.log
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: false
-        submit_to_app_store: false
- /tmp/klarnet-ipa-contents.txt; then
+          if ! grep -E "^Payload/[^/]+[.]app/Info[.]plist$" /tmp/klarnet-ipa-contents.txt; then
             echo "::error::Signed IPA is missing the app Info.plist"
             tail -n 40 /tmp/klarnet-ipa-contents.txt
             exit 1
