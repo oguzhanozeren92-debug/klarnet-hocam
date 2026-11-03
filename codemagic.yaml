@@ -120,7 +120,31 @@ workflows:
             }
           IPA="$(find "$CM_BUILD_DIR/build/ios/ipa" -maxdepth 1 -type f -name '*.ipa' -size +1M -print -quit)"
           test -n "$IPA" || { echo "::error::No signed IPA produced"; exit 1; }
-          unzip -Z -1 "$IPA" | grep -Eq '^Payload/[^/]+[.]app/Info[.]plist$'
+          # Avoid SIGPIPE (exit 141) under pipefail: grep -q can terminate
+          # before unzip finishes writing the IPA file list.
+          unzip -Z -1 "$IPA" > /tmp/klarnet-ipa-contents.txt
+          if ! grep -Eq '^Payload/[^/]+[.]app/Info[.]plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/klarnet-ipa.log
+      - /tmp/klarnet-unsigned.log
+      - /tmp/klarnet-spm.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
+ /tmp/klarnet-ipa-contents.txt; then
+            echo "::error::Signed IPA is missing the app Info.plist"
+            tail -n 40 /tmp/klarnet-ipa-contents.txt
+            exit 1
+          fi
+          unzip -tq "$IPA" > /tmp/klarnet-ipa-integrity.txt || {
+            echo "::error::Signed IPA failed ZIP integrity validation"
+            tail -n 40 /tmp/klarnet-ipa-integrity.txt
+            exit 1
+          }
           echo "PASS: signed IPA created and validated"
     artifacts:
       - build/ios/ipa/*.ipa
