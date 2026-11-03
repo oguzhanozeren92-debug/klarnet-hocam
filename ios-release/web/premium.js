@@ -441,6 +441,7 @@ function showPractice(g,i){stopMicrophone();
  ${spec.notes?.length?scoreHtml(spec.notes,spec.mode==='sequence'?'Notaları sırayla çal':'Hedef nota'):''}${micWidget(spec)}<button class="secondary" id="donePractice" disabled>✓ Ölçüm sonrası tamamla</button><p class="microphone-note">Ses kontrolü başarılı olunca alıştırma tamamlanabilir. Gerekirse uzmanla veya öğretmenle ses kaliteni kontrol et.</p><div class="feedback" id="practiceFeedback" aria-live="polite"></div>`;
  document.getElementById('backPractice').onclick=()=>setNav('alistirmalar');
  bindMicWidget(spec);hydrateNotation();
+ window.dispatchEvent(new CustomEvent('kh:practice-opened',{detail:{practiceId:id}}));
  document.getElementById('donePractice').onclick=()=>{
   if(!micController?.passed){document.getElementById('practiceFeedback').textContent='Önce mikrofonla ses ölçümünü tamamla.';return;}
   let done=[];try{done=JSON.parse(localStorage.getItem('klar-practice-v2')||'[]')}catch{};
