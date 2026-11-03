@@ -43,6 +43,20 @@ if(lessons<29 || !js.includes("const exercises=[") ||
   throw new Error("The approved V6 lesson/microphone UI is incomplete; refusing stale TestFlight IPA");
 if(practices!==35)
   throw new Error("Expected exactly 35 training exercises in the V6 curriculum; found "+practices);
+const mobileAds=assets["mobile-extras.js"];
+const mobileAdsCss=assets["mobile-extras.css"];
+if(/showBanner|hideBanner|ADAPTIVE_BANNER|kh-banner-visible|bannerId/i.test(mobileAds+"\n"+mobileAdsCss))
+  throw Error("Klarnet Hocam must stay BANNER-FREE; remove any native banner display or padding");
+if(!mobileAds.includes("prepareInterstitial")||
+   !mobileAds.includes("showInterstitial")||
+   !mobileAds.includes('kh:practice-completed')||
+   !mobileAds.includes('kh:practice-opened')||
+   !mobileAds.includes("MAX_DAILY=2")||
+   !mobileAds.includes("MIN_GAP_MS=40*60*1000"))
+  throw Error("Klarnet Hocam post-practice interstitial safeguards are missing");
+if(!js.includes("kh:practice-opened")||!js.includes("kh:practice-completed"))
+  throw Error("Verified microphone completion events are not wired to the ad placement");
+
 // Native iPhone only; no banner and no web impressions. Interstitial after verified practice exit.
 const mode=String(process.env.KLARNET_ADMOB_MODE||"disabled").trim();
 if(!["disabled","test","production"].includes(mode))
