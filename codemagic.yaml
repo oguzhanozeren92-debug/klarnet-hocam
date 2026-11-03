@@ -1,0 +1,135 @@
+# Klarnet Hocam: manual smoke and signed TestFlight builds.
+# No automatic App Store review submission; the approved GitHub icon is bundled.
+workflows:
+  klarnet-hocam-ios-smoke:
+    name: Klarnet Hocam — iPhone unsigned build test
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Validate toolchain and prepare real offline app
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+          cd ios-release
+          npm install --no-audit --no-fund
+          npm run native:prepare
+          test -s ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+          test -s ios/App/App/public/premium.js
+          test -s ios/App/App/config.xml
+          echo "PASS: approved icon and real bundled lessons present"
+      - name: Compile iOS simulator build without signing
+        script: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies -project ios-release/ios/App/App.xcodeproj -scheme App
+          (
+            cd ios-release
+            node scripts/configure-native.mjs
+          )
+          xcodebuild \
+            -project ios-release/ios/App/App.xcodeproj \
+            -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$CM_BUILD_DIR/klarnet-smoke" \
+            CODE_SIGNING_ALLOWED=NO build > /tmp/klarnet-smoke.log 2>&1 || {
+              tail -n 130 /tmp/klarnet-smoke.log
+              exit 1
+            }
+    artifacts:
+      - /tmp/klarnet-smoke.log
+
+  klarnet-hocam-ios-testflight:
+    name: Klarnet Hocam — signed iPhone IPA and TestFlight upload
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: TarlaPusula CI 2
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.oguzhanozeren.klarnethocam
+    scripts:
+      - name: Validate App Store Xcode requirements
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+          XCODE_MAJOR="$(xcodebuild -version | awk '/^Xcode /{print $2}' | cut -d. -f1)"
+          test -n "$XCODE_MAJOR" && test "$XCODE_MAJOR" -ge 26 || {
+            echo "::error::Xcode 26+ is required for App Store submission."
+            exit 1
+          }
+      - name: Build web lessons and native iOS app icons
+        script: |
+          set -euo pipefail
+          cd ios-release
+          npm install --no-audit --no-fund
+          npm run native:prepare
+          test -s ios/App/App/public/index.html
+          test -s ios/App/App/public/premium.js
+          test -s ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+          echo "PASS: real Klarnet Hocam app and approved 1024px icon are packaged"
+      - name: Resolve Swift dependencies and compile native iPhone app
+        script: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project ios-release/ios/App/App.xcodeproj \
+            -scheme App > /tmp/klarnet-spm.log 2>&1 || {
+              tail -n 120 /tmp/klarnet-spm.log
+              exit 1
+            }
+          (
+            cd ios-release
+            node scripts/configure-native.mjs
+          )
+          xcodebuild \
+            -project ios-release/ios/App/App.xcodeproj \
+            -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$CM_BUILD_DIR/klarnet-unsigned" \
+            CODE_SIGNING_ALLOWED=NO build > /tmp/klarnet-unsigned.log 2>&1 || {
+              grep -nEi -C 3 'error:|fatal error|BUILD FAILED|missing package product|no such module' /tmp/klarnet-unsigned.log | tail -n 110 || true
+              tail -n 140 /tmp/klarnet-unsigned.log
+              exit 1
+            }
+      - name: Apply existing Apple distribution signing and build number
+        script: |
+          set -euo pipefail
+          xcode-project use-profiles --project "$CM_BUILD_DIR/ios-release/ios/App/App.xcodeproj"
+          cd ios-release/ios/App
+          xcrun agvtool new-version -all "$BUILD_NUMBER"
+      - name: Archive, export and verify signed IPA
+        script: |
+          set -euo pipefail
+          mkdir -p "$CM_BUILD_DIR/build/ios/ipa"
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/ios-release/ios/App/App.xcodeproj" \
+            --scheme App \
+            --archive-flags="-destination 'generic/platform=iOS'" \
+            --disable-xcpretty \
+            --verbose \
+            --ipa-directory "$CM_BUILD_DIR/build/ios/ipa" > /tmp/klarnet-ipa.log 2>&1 || {
+              grep -nEi 'error:|fatal error|provisioning|signing|archive failed|exportArchive|BUILD FAILED' /tmp/klarnet-ipa.log | tail -n 100 || true
+              tail -n 150 /tmp/klarnet-ipa.log
+              exit 1
+            }
+          IPA="$(find "$CM_BUILD_DIR/build/ios/ipa" -maxdepth 1 -type f -name '*.ipa' -size +1M -print -quit)"
+          test -n "$IPA" || { echo "::error::No signed IPA produced"; exit 1; }
+          unzip -Z -1 "$IPA" | grep -Eq '^Payload/[^/]+[.]app/Info[.]plist$'
+          echo "PASS: signed IPA created and validated"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/klarnet-ipa.log
+      - /tmp/klarnet-unsigned.log
+      - /tmp/klarnet-spm.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
