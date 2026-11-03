@@ -1,0 +1,8 @@
+/* Klarnet Hocam V6: iPhone safe-area refinements; original approved V6 styles are in premium.css. */
+html{width:100%;overflow-x:hidden}
+body{min-width:0;overflow-x:hidden;-webkit-text-size-adjust:100%}
+button{touch-action:manipulation}
+.app{width:100%;max-width:520px;min-width:0}
+@supports(padding:env(safe-area-inset-bottom)){
+  .bottom{padding-bottom:max(7px,env(safe-area-inset-bottom))}
+}
