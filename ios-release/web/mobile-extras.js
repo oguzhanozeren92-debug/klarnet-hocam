@@ -95,7 +95,10 @@
         await admob.initialize({initializeForTesting:adConfig.testMode===true});
         return true;
       }catch(e){console.warn("Klarnet AdMob not ready",e?.message);return false;}
-    })();
+    })().then(ok=>{
+      if(!ok)adReady=null; // Consent or network might change after a failed attempt.
+      return ok;
+    });
     return adReady;
   }
   // AdMob: only after a REAL microphone-verified practice is completed,
@@ -140,8 +143,16 @@
     })().catch(e=>{adListeners=null;throw e;});
     return adListeners;
   }
-  async function preloadPracticeAd(){
-    if(!canOfferInterstitial()||interstitialReady)return false;
+  function eligibleUpcomingPractice(practiceId){
+    const state=loadAdState();
+    return native()&&adConfig.enabled===true&&
+      !state.seen.includes(today()+":"+practiceId)&&
+      state.completions>=2&&(state.completions+1)%3===0&&
+      state.shown<MAX_DAILY&&
+      (!state.lastShown||Date.now()-state.lastShown>=MIN_GAP_MS);
+  }
+  async function preloadPracticeAd(upcoming=false){
+    if(!(upcoming||canOfferInterstitial())||interstitialReady)return false;
     if(interstitialLoading)return interstitialLoading;
     interstitialLoading=(async()=>{
       if(!(await adSdk()))return false;
@@ -181,6 +192,11 @@
   function init(){
     if(!document.getElementById("kh-settings-open"))return;
     document.getElementById("kh-settings-open").addEventListener("click",showSettings);
+    // Background loading only; the ad itself is never shown during microphone use.
+    window.addEventListener("kh:practice-opened",event=>{
+      const id=event?.detail?.practiceId;
+      if(typeof id==="string"&&eligibleUpcomingPractice(id))void preloadPracticeAd(true);
+    });
     window.addEventListener("kh:practice-completed",event=>{
       try{localStorage.setItem(DONE,today())}catch{}
       void syncLocal().catch(e=>console.warn("Practice reminder",e?.message));
