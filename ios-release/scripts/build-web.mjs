@@ -51,8 +51,8 @@ if(mode==="test"&&process.env.KLARNET_ADMOB_ALLOW_TESTFLIGHT!=="1")
   throw Error("Klarnet demo AdMob units require explicit TestFlight opt-in");
 const appId=String(process.env.KLARNET_ADMOB_APP_ID||"").trim();
 const bannerId=String(process.env.KLARNET_ADMOB_BANNER_ID||"").trim();
-const appPattern=/^ca-app-pub-\\d{16}~\\d{10}$/;
-const unitPattern=/^ca-app-pub-\\d{16}\\/\\d{10}$/;
+const appPattern=/^ca-app-pub-\d{16}~\d{10}$/;
+const unitPattern=/^ca-app-pub-\d{16}\/\d{10}$/;
 if(mode==="production"&&(!appPattern.test(appId)||!unitPattern.test(bannerId)||
     appId.startsWith("ca-app-pub-3940256099942544")||
     bannerId.startsWith("ca-app-pub-3940256099942544")))
@@ -66,7 +66,7 @@ await fs.rm(out,{recursive:true,force:true});
 await fs.mkdir(out,{recursive:true});
 for(const name of names)await fs.writeFile(path.join(out,name),assets[name],"utf8");
 await fs.writeFile(path.join(out,"mobile-config.js"),
-  "window.KLARNET_AD_CONFIG=Object.freeze("+JSON.stringify(config)+");\\n","utf8");
+  "window.KLARNET_AD_CONFIG=Object.freeze("+JSON.stringify(config)+");\n","utf8");
 for(const name of names){
   const st=await fs.stat(path.join(out,name));
   if(st.size===0)throw new Error("Empty packaged V6 resource: "+name);
