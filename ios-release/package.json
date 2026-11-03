@@ -1,0 +1,17 @@
+{
+  "name": "klarnet-hocam-ios",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "native:prepare": "npm run build && npx cap add ios --packagemanager SPM && npx cap sync ios && node scripts/configure-native.mjs && node scripts/generate-ios-icons.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "sharp": "0.34.4"
+  }
+}
