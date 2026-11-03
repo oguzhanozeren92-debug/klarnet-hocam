@@ -1,0 +1,9 @@
+{
+  "appId": "com.oguzhanozeren.klarnethocam",
+  "appName": "Klarnet Hocam",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": false
+  }
+}
