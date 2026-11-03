@@ -1,4 +1,4 @@
-/* Klarnet Hocam: opt-in native practice reminders + unobtrusive native AdMob banner.
+/* Klarnet Hocam: opt-in practice reminders + rare post-practice native interstitial.
  * Browser and Vercel previews never simulate native notifications or ad revenue.
  */
 (function(){
@@ -7,7 +7,7 @@
   const DONE="kh-last-practice-date-v1";
   const IDS=Array.from({length:25},(_,i)=>790200+i);
   const adConfig=window.KLARNET_AD_CONFIG||{enabled:false};
-  let adReady=null, bannerVisible=false, currentBannerBusy=false;
+  let adReady=null;
   const native=()=>!!window.Capacitor?.isNativePlatform?.()&&window.Capacitor?.getPlatform?.()==="ios";
   function plugin(name){
     if(!native())return null;
@@ -98,38 +98,114 @@
     })();
     return adReady;
   }
-  async function syncBanner(){
-    if(!native()||!plugin("AdMob")||currentBannerBusy)return;
-    const onHome=!!document.querySelector('nav [data-page="home"].active');
-    const allowed=onHome&&adConfig.enabled===true;
-    if(allowed===bannerVisible)return;
-    currentBannerBusy=true;const admob=plugin("AdMob");
+  // AdMob: only after a REAL microphone-verified practice is completed,
+  // and ONLY after the learner leaves that practice for the exercise list.
+  // Never while audio capture, playback, teaching, or a lesson is active.
+  const ADS="kh-interstitial-frequency-v1";
+  const MIN_GAP_MS=40*60*1000;
+  const MAX_DAILY=2;
+  let interstitialReady=false,interstitialLoading=null,interstitialShowing=false;
+  let adListeners=null,completedPending=false;
+  const adUnit=()=>adConfig.testMode===true
+    ?"ca-app-pub-3940256099942544/4411468910"
+    :String(adConfig.interstitialId||"");
+  function loadAdState(){
+    const day=today();
     try{
-      if(!allowed){await admob.hideBanner();bannerVisible=false;document.body.classList.remove("kh-banner-visible");return;}
-      if(!(await adSdk()))return;
-      await admob.showBanner({adId:adConfig.bannerId,adSize:"ADAPTIVE_BANNER",
-        position:"BOTTOM_CENTER",margin:86,npa:true,isTesting:adConfig.testMode===true});
-      bannerVisible=true;document.body.classList.add("kh-banner-visible");
-    }catch(e){console.warn("Klarnet banner skipped",e?.message)}
-    finally{currentBannerBusy=false}
+      const x=JSON.parse(localStorage.getItem(ADS)||"null");
+      if(x&&Number.isFinite(x.completions)&&Number.isFinite(x.lastShown)&&Array.isArray(x.seen)){
+        return {completions:x.completions,lastShown:x.lastShown,
+          day,shown:x.day===day&&Number.isFinite(x.shown)?x.shown:0,
+          seen:x.seen.slice(-120)};
+      }
+    }catch{}
+    return {completions:0,lastShown:0,day,shown:0,seen:[]};
+  }
+  function storeAdState(s){
+    try{localStorage.setItem(ADS,JSON.stringify(s))}catch{}
+  }
+  function canOfferInterstitial(){
+    if(!native()||adConfig.enabled!==true||interstitialShowing)return false;
+    const s=loadAdState();
+    return s.completions>0&&s.completions%3===0&&s.shown<MAX_DAILY
+      &&(!s.lastShown||Date.now()-s.lastShown>=MIN_GAP_MS);
+  }
+  function ensureAdListeners(){
+    if(adListeners)return adListeners;
+    adListeners=(async()=>{
+      const mob=plugin("AdMob");
+      if(!mob)throw Error("AdMob native plugin unavailable");
+      await mob.addListener("interstitialAdDismissed",()=>{interstitialShowing=false;});
+      await mob.addListener("interstitialAdFailedToShow",()=>{interstitialShowing=false;});
+    })().catch(e=>{adListeners=null;throw e;});
+    return adListeners;
+  }
+  async function preloadPracticeAd(){
+    if(!canOfferInterstitial()||interstitialReady)return false;
+    if(interstitialLoading)return interstitialLoading;
+    interstitialLoading=(async()=>{
+      if(!(await adSdk()))return false;
+      const mob=plugin("AdMob");if(!mob)return false;
+      await ensureAdListeners();
+      await mob.prepareInterstitial({adId:adUnit(),npa:true,isTesting:adConfig.testMode===true});
+      interstitialReady=true;
+      return true;
+    })().catch(e=>{console.warn("Klarnet geçiş reklamı yüklenemedi",e?.message);return false;})
+      .finally(()=>{interstitialLoading=null;});
+    return interstitialLoading;
+  }
+  function rememberVerifiedCompletion(practiceId){
+    const s=loadAdState(),key=today()+":"+practiceId;
+    if(s.seen.includes(key))return false; // Same practice doesn't create extra ads today.
+    s.seen.push(key);s.seen=s.seen.slice(-120);
+    s.completions++;
+    storeAdState(s);
+    return true;
+  }
+  async function showPracticeAdAfterExit(){
+    if(!completedPending)return;
+    completedPending=false;
+    // Premium UI must already have navigated away and stopped the microphone.
+    if(!document.querySelector('nav [data-page="alistirmalar"].active')||
+       document.getElementById("micToggle")||!canOfferInterstitial()||!interstitialReady)return;
+    interstitialReady=false;
+    interstitialShowing=true;
+    try{
+      await plugin("AdMob").showInterstitial();
+      const s=loadAdState();
+      s.shown++;s.lastShown=Date.now();
+      storeAdState(s);
+    }catch(e){console.warn("Klarnet geçiş reklamı atlandı",e?.message);}
+    finally{interstitialShowing=false;}
   }
   function init(){
     if(!document.getElementById("kh-settings-open"))return;
     document.getElementById("kh-settings-open").addEventListener("click",showSettings);
-    window.addEventListener("kh:practice-completed",()=>{
+    window.addEventListener("kh:practice-completed",event=>{
       try{localStorage.setItem(DONE,today())}catch{}
       void syncLocal().catch(e=>console.warn("Practice reminder",e?.message));
+      const practiceId=event?.detail?.practiceId;
+      if(typeof practiceId!=="string"||!practiceId||!native())return;
+      if(!rememberVerifiedCompletion(practiceId))return;
+      if(canOfferInterstitial()){
+        completedPending=true;
+        void preloadPracticeAd();
+      }
     });
     document.addEventListener("click",e=>{
-      if(e.target.closest('nav [data-page]'))setTimeout(()=>{void syncBanner()},80);
+      if(e.target?.closest?.("#backPractice")){
+        // Back button handler stops the microphone and renders the practice list
+        // before the ad can open; never interrupt a live practice session.
+        setTimeout(()=>{void showPracticeAdAfterExit()},120);
+      }else if(e.target?.closest?.('nav [data-page]')){
+        completedPending=false;
+      }
     });
     document.addEventListener("visibilitychange",()=>{
-      if(!document.hidden){if(load().enabled)void syncLocal();void syncBanner()}
+      if(!document.hidden&&load().enabled)void syncLocal();
     });
-    if(native()){
-      if(load().enabled)void syncLocal().catch(e=>console.warn("Klarnet reminder sync",e?.message));
-      setTimeout(()=>{void syncBanner()},350);
-    }
+    if(native()&&load().enabled)
+      void syncLocal().catch(e=>console.warn("Klarnet reminder sync",e?.message));
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
   else init();
