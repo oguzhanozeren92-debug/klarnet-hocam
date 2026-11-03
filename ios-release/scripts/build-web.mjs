@@ -1,54 +1,47 @@
-// Bundle the existing production Klarnet Hocam web app into the iOS IPA.
-// The download is performed at build time; the app then runs from local files.
+// Package the approved Klarnet Hocam V6 directly from versioned GitHub
+// sources. Never download an unrelated/stale Vercel deployment at build time.
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const out = path.resolve("www");
-const sources = [
-  "https://klarnet-hocam.vercel.app/",
-  "https://klarnet-hocam-pvdli1rrr-oguzhanozeren92-1273.vercel.app/"
-];
-const names = ["index.html", "premium.js", "premium.css", "polish.css"];
-const requiredMinimumBytes = { "index.html": 1000, "premium.js": 2000, "premium.css": 2000, "polish.css": 1000 };
-
-async function download(base, name) {
-  const url = new URL(name === "index.html" ? "" : name, base);
-  const response = await fetch(url, {
-    headers: { "Cache-Control": "no-cache", "User-Agent": "KlarnetHocam-iOS-build/1.0" },
-    signal: AbortSignal.timeout(30000)
+const root=process.cwd();
+const source=path.join(root,"web");
+const out=path.join(root,"www");
+const names=["index.html","premium.js","premium.css","polish.css"];
+const assets={};
+for(const name of names){
+  const file=path.join(source,name);
+  assets[name]=await fs.readFile(file,"utf8").catch(error=>{
+    throw new Error("Approved Klarnet Hocam V6 source missing: "+file+" ("+error.message+")");
   });
-  if (!response.ok) throw new Error(name + ": HTTP " + response.status + " from " + url);
-  const body = await response.text();
-  if (Buffer.byteLength(body, "utf8") < requiredMinimumBytes[name])
-    throw new Error(name + ": insufficient app content; refusing to package a partial site");
-  if (name === "index.html" && (!body.includes('id="screen"') || !body.includes("Klarnet Hocam")))
-    throw new Error("Not the Klarnet Hocam app index");
-  if (name.endsWith(".js") && body.trimStart().startsWith("<"))
-    throw new Error("JavaScript request returned HTML (possibly a Vercel access page)");
-  if (name.endsWith(".css") && body.trimStart().startsWith("<"))
-    throw new Error("CSS request returned HTML (possibly a Vercel access page)");
-  return body;
 }
-let bundle, lastError;
-for (const base of sources) {
-  try {
-    const candidate = {};
-    for (const name of names) candidate[name] = await download(base, name);
-    bundle = candidate;
-    console.log("Validated complete web app from:", base);
-    break;
-  } catch (err) {
-    lastError = err;
-    console.warn("Web source unavailable:", base, String(err.message));
-  }
+const html=assets["index.html"];
+const js=assets["premium.js"];
+const css=assets["premium.css"];
+const lessons=(js.match(/^add\('/gm)||[]).length;
+const practices=(js.match(/^\['[^\n]*?'\s*,\s*'/gm)||[]).length;
+if(!html.includes("Fotoğraflı Müzik Akademisi V6")||
+   !html.includes('id="main"')||
+   !html.includes('src="./premium.js"')||
+   !html.includes('href="./premium.css"')||
+   !html.includes('href="./polish.css"'))
+  throw new Error("Incorrect HTML version or missing V6 asset references");
+if(lessons<29 || !js.includes("const exercises=[") ||
+   !js.includes("function showLesson") ||
+   !js.includes("function showPractice") ||
+   !js.includes("navigator.mediaDevices") ||
+   !js.includes("Pitchy") || !js.includes("abcjs") ||
+   !js.includes("micToggle") ||
+   js.length<100000 || css.length<200000)
+  throw new Error("The approved V6 lesson/microphone UI is incomplete; refusing stale TestFlight IPA");
+if(practices<35)
+  throw new Error("Expected at least 35 training exercises in the V6 curriculum; found "+practices);
+await fs.rm(out,{recursive:true,force:true});
+await fs.mkdir(out,{recursive:true});
+for(const name of names)await fs.writeFile(path.join(out,name),assets[name],"utf8");
+for(const name of names){
+  const st=await fs.stat(path.join(out,name));
+  if(st.size===0)throw new Error("Empty packaged V6 resource: "+name);
 }
-if (!bundle) throw new Error("Cannot produce an iOS build without the actual app: " + lastError);
-bundle["index.html"] = bundle["index.html"]
-  .replaceAll('href="/premium.css"', 'href="./premium.css"')
-  .replaceAll('href="/polish.css"', 'href="./polish.css"')
-  .replaceAll('src="/premium.js"', 'src="./premium.js"');
-await fs.rm(out, { recursive: true, force: true });
-await fs.mkdir(out, { recursive: true });
-for (const [name, content] of Object.entries(bundle))
-  await fs.writeFile(path.join(out, name), content, "utf8");
-console.log("Klarnet Hocam iOS bundle ready:", names.join(", "));
+console.log("PASS: packaged approved Klarnet Hocam V6 from GitHub, not Vercel");
+console.log("V6 curriculum: "+lessons+" topic lessons, "+practices+" practice items");
+console.log("All core lesson content is bundled locally. Optional third-party media/services still need connectivity.");
