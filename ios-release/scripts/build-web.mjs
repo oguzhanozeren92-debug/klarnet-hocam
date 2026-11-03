@@ -22,7 +22,8 @@ const exercisesStart=js.indexOf("const exercises=[");
 const exercisesEnd=js.indexOf("const main=",exercisesStart);
 const exerciseCatalogue=exercisesStart>=0 && exercisesEnd>exercisesStart
   ? js.slice(exercisesStart,exercisesEnd):"";
-const practices=(exerciseCatalogue.match(/^\['[^\n]*?'\s*,\s*'/gm)||[]).length;
+// Entries can appear several times on the same line, so do not anchor to ^.
+const practices=(exerciseCatalogue.match(/\[\s*'[^'\n]+'\s*,\s*'[^'\n]+'\s*\]/g)||[]).length;
 if(!html.includes("Fotoğraflı Müzik Akademisi V6")||
    !html.includes('id="main"')||
    !html.includes('src="./premium.js"')||
@@ -38,7 +39,7 @@ if(lessons<29 || !js.includes("const exercises=[") ||
    js.length<100000 || css.length<200000)
   throw new Error("The approved V6 lesson/microphone UI is incomplete; refusing stale TestFlight IPA");
 if(practices!==35)
-  throw new Error("Expected at least 35 training exercises in the V6 curriculum; found "+practices);
+  throw new Error("Expected exactly 35 training exercises in the V6 curriculum; found "+practices);
 await fs.rm(out,{recursive:true,force:true});
 await fs.mkdir(out,{recursive:true});
 for(const name of names)await fs.writeFile(path.join(out,name),assets[name],"utf8");
