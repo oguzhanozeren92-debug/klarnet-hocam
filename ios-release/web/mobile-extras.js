@@ -50,6 +50,16 @@
     if(permission.display!=="granted")throw Error("iPhone bildirim izni verilmedi.");
     save({enabled:true,time});await syncLocal();
   }
+  async function test(){
+    const p=plugin("LocalNotifications");
+    if(!p || (await p.checkPermissions())?.display!=="granted")
+      throw Error("Önce iPhone bildirimlerine izin vermelisin.");
+    await p.schedule({notifications:[{
+      id:790299,title:"🔔 Klarnet Hocam bildirim testi",
+      body:"Harika! iPhone çalışma hatırlatmaları çalışıyor.",
+      schedule:{at:new Date(Date.now()+5000)},extra:{target:"practice",source:"klarnet-test"},foreground:false
+    }]});
+  }
   async function disable(){
     save({enabled:false,time:load().time});
     const p=plugin("LocalNotifications");if(p)await cancelLocal(p);
@@ -68,6 +78,7 @@
       '<p id="kh-notice-status" role="status"></p>'+
       '<div class="kh-actions"><button type="button" id="kh-activate">Bildirimleri aç</button>'+
       '<button type="button" id="kh-deactivate">Kapat</button></div>'+
+       '<button type="button" id="kh-test-notification" style="margin-top:10px;width:100%">🔔 5 saniyelik test bildirimi</button>'+'+
       '<button type="button" id="kh-ad-privacy" hidden>Reklam gizlilik tercihleri</button></div>';
     document.body.appendChild(dialog);dialog.querySelector(".kh-close").onclick=()=>dialog.remove();
     dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.remove()});
@@ -75,6 +86,9 @@
     const update=async(action)=>{msg.textContent="İşleniyor…";try{await action();status(msg)}catch(e){msg.textContent=e?.message||"İşlem tamamlanamadı.";}}
     dialog.querySelector("#kh-activate").onclick=()=>update(()=>enable(dialog.querySelector("#kh-time").value||"19:00"));
     dialog.querySelector("#kh-deactivate").onclick=()=>update(disable);
+    dialog.querySelector("#kh-test-notification").onclick=()=>update(async()=>{
+      await test();msg.textContent="Test 5 saniye sonrasına ayarlandı. Ekranı kilitleyip dene.";
+    });
     const adButton=dialog.querySelector("#kh-ad-privacy");
     if(native()&&adConfig.enabled===true){
       adButton.hidden=false;
@@ -222,6 +236,20 @@
     });
     if(native()&&load().enabled)
       void syncLocal().catch(e=>console.warn("Klarnet reminder sync",e?.message));
+    if(native()&&!load().enabled&&localStorage.getItem("kh-notification-offered-v1")!=="1"){
+      window.setTimeout(()=>{
+        if(load().enabled||localStorage.getItem("kh-notification-offered-v1")==="1")return;
+        const card=document.createElement("aside");
+        card.setAttribute("role","dialog");
+        card.setAttribute("aria-label","Klarnet çalışma hatırlatmaları");
+        card.style.cssText="position:fixed;z-index:999;bottom:calc(15px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:430px;margin:auto;background:#17263d;color:white;border:1px solid #7790af;border-radius:17px;padding:16px;box-shadow:0 10px 36px #0008;font:14px system-ui";
+        card.innerHTML='<strong>🎵 Klarnet çalışmayı hatırlatalım mı?</strong><p style="line-height:1.5">Her gün seçtiğin saatte iPhone bildirim gönderebilir. Sadece izin verirsen çalışır.</p><div style="display:flex;gap:9px"><button data-open style="flex:1;padding:12px;border:0;border-radius:11px;background:#e7b870;color:#21180c;font-weight:800">Bildirimleri ayarla</button><button data-close style="padding:12px;border:1px solid #93a6bd;border-radius:11px;background:#233c59;color:white">Şimdi değil</button></div>';
+        const close=()=>{localStorage.setItem("kh-notification-offered-v1","1");card.remove()};
+        card.querySelector("[data-close]").onclick=close;
+        card.querySelector("[data-open]").onclick=()=>{close();showSettings()};
+        document.body.appendChild(card);
+      },2500);
+    }
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
   else init();
