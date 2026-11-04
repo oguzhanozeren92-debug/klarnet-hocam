@@ -78,7 +78,7 @@
       '<p id="kh-notice-status" role="status"></p>'+
       '<div class="kh-actions"><button type="button" id="kh-activate">Bildirimleri aç</button>'+
       '<button type="button" id="kh-deactivate">Kapat</button></div>'+
-       '<button type="button" id="kh-test-notification" style="margin-top:10px;width:100%">🔔 5 saniyelik test bildirimi</button>'+'+
+       '<button type="button" id="kh-test-notification" style="margin-top:10px;width:100%">🔔 5 saniyelik test bildirimi</button>'+
       '<button type="button" id="kh-ad-privacy" hidden>Reklam gizlilik tercihleri</button></div>';
     document.body.appendChild(dialog);dialog.querySelector(".kh-close").onclick=()=>dialog.remove();
     dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.remove()});
@@ -86,9 +86,10 @@
     const update=async(action)=>{msg.textContent="İşleniyor…";try{await action();status(msg)}catch(e){msg.textContent=e?.message||"İşlem tamamlanamadı.";}}
     dialog.querySelector("#kh-activate").onclick=()=>update(()=>enable(dialog.querySelector("#kh-time").value||"19:00"));
     dialog.querySelector("#kh-deactivate").onclick=()=>update(disable);
-    dialog.querySelector("#kh-test-notification").onclick=()=>update(async()=>{
-      await test();msg.textContent="Test 5 saniye sonrasına ayarlandı. Ekranı kilitleyip dene.";
-    });
+    dialog.querySelector("#kh-test-notification").onclick=async()=>{
+      try{await test();msg.textContent="Test 5 saniye sonrasına ayarlandı. Ekranı kilitleyip dene.";}
+      catch(e){msg.textContent=e?.message||"Test bildirimi planlanamadı.";}
+    };
     const adButton=dialog.querySelector("#kh-ad-privacy");
     if(native()&&adConfig.enabled===true){
       adButton.hidden=false;
